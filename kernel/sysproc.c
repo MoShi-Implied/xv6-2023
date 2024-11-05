@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h" // add
 
 uint64
 sys_exit(void)
@@ -90,4 +91,37 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// 设置需要监听的mask
+uint64 sys_trace() {
+  int mask = -1;
+
+  // acquire(&tickslock);
+  argint(0, &mask); // 获取sys_trace参数
+  // release(&tickslock);
+  myproc()->mask = mask;
+
+  if(((mask >> 22) & 0b1) == 1) {
+    printf("%d: syscall trace -> 0\n", sys_getpid());
+  }
+
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  // 从用户态读入一个指针，作为存放 sysinfo 结构的缓冲区
+  uint64 addr;
+  argaddr(0, &addr);
+
+  struct sysinfo sinfo;
+  sinfo.freemem = acquire_sizeof_free_mem(); // kalloc.c
+  sinfo.nproc = acquire_sizeof_nproc(); // proc.c
+
+  if(copyout(myproc()->pagetable, addr, (char *)&sinfo, sizeof(sinfo)) < 0)
+    return -1;
+
+  return 0;
 }

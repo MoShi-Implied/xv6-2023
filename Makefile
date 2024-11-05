@@ -188,6 +188,8 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_trace\
+	$U/_sysinfotest
 
 
 
@@ -309,6 +311,13 @@ qemu: $K/kernel fs.img
 qemu-gdb: $K/kernel .gdbinit fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+# 新增对于gdb的脚本，教程链接：https://blog.csdn.net/qq_45698833/article/details/120314168
+# target remote localhost:26000
+# 在相同的xv6文件夹下riscv64-unknown-elf-gdb 再加上要调试的文件名（比如kernel/kernel或者user/_sleep）
+# 也可以进入gdb后再输入file user/_[execname]加载可执行文件。
+gdb:
+	riscv64-unknown-elf-gdb
 
 ifeq ($(LAB),net)
 # try to generate a unique port for the echo server

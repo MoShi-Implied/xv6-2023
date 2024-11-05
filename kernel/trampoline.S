@@ -25,6 +25,8 @@ uservec:
         # traps from user space start here,
         # in supervisor mode, but with a
         # user page table.
+                # trap.c 设置 stvec 指向这里，因此从用户空间启动的陷阱会在这里开始，
+                # 处于管理员模式，但使用用户页表。
         #
 
         # save user a0 in sscratch so

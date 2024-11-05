@@ -111,6 +111,8 @@ allocproc(void)
 {
   struct proc *p;
 
+  // 找到一个空闲的进程
+  // proc也是空闲进程数组，在第11行
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -142,8 +144,11 @@ found:
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
+  // 设置一个从forket开始的新上下文
+  // 这将会返回到用户空间
   memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
+  p->context.ra = (uint64)forkret;  // ra存储的是返回地址（return address）
+                                    // 在alloproc执行完之后，控制流将会回到forket
   p->context.sp = p->kstack + PGSIZE;
 
   return p;
@@ -301,6 +306,8 @@ fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+
+  np->mask = p->mask;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -513,6 +520,7 @@ yield(void)
 
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
+// fork 子进程首次由 scheduler() 调度时，将会切换到 forkret
 void
 forkret(void)
 {
@@ -685,4 +693,15 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// 好像没法上锁》
+uint64 acquire_sizeof_nproc(void) {
+  struct proc* p = proc;
+  uint64 cnt = 0;
+  for(; p < &proc[NPROC]; p++) {
+    if(p->state != UNUSED)
+      cnt++;
+  }
+  return cnt;
 }

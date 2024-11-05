@@ -101,9 +101,12 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+extern uint64 sys_trace(void); // add
+extern uint64 sys_sysinfo(void); // add
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
+// C语言的特殊语法，指定初始化器
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -126,6 +129,36 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace, // add
+[SYS_sysinfo] sys_sysinfo// add
+};
+
+
+static char* re_syscalls[] = {
+  "Empty syscall",
+  "fork",
+  "exit",
+  "wait",
+  "pipe",
+  "read",
+  "kill",
+  "exec",
+  "fstat",
+  "chdir",
+  "dup",
+  "getpid",
+  "sbrk",
+  "sleep",
+  "uptime",
+  "open",
+  "write",
+  "mknod",
+  "unlink",
+  "link",
+  "mkdir",
+  "close",
+  "trace",
+  "sysinfo"
 };
 
 void
@@ -134,11 +167,18 @@ syscall(void)
   int num;
   struct proc *p = myproc();
 
-  num = p->trapframe->a7;
+  num = p->trapframe->a7; // 获取要执行的系统调用号
+  // num = *(int *) 0;
+
+  int mask = p->mask; // 掩码
+
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
+    p->trapframe->a0 = syscalls[num](); // 实际执行系统调用，然后将系统调用的返回值存储在a0中
+    if(((mask >> num) & 0b1) == 1) {
+      printf("%d: syscall %s -> %d\n", sys_getpid(), re_syscalls[num], p->trapframe->a0);
+    }
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);

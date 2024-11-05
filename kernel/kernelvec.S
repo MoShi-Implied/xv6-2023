@@ -5,6 +5,12 @@
         # the current stack is a kernel stack.
         # push all registers, call kerneltrap().
         # when kerneltrap() returns, restore registers, return.
+                # 翻译：
+                # 当处于管理员模式时，中断和异常会在这里处理。
+                #
+                # 当前的栈是一个内核栈。
+                # 推入所有寄存器，调用 kerneltrap() 函数。
+                # 当 kerneltrap() 返回时，恢复寄存器，然后返回。
         #
 .globl kerneltrap
 .globl kernelvec
@@ -85,7 +91,7 @@ kernelvec:
         addi sp, sp, 256
 
         # return to whatever we were doing in the kernel.
-        sret
+        sret # riscv中有多种ret指令，sret用于从内核模式的中断程序中返回
 
         #
         # machine-mode timer interrupt.

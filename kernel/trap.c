@@ -12,7 +12,7 @@ uint ticks;
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
-void kernelvec();
+void kernelvec(); // 原来函数能直接使用汇编实现，而c文件中只有声明代码啊？？？
 
 extern int devintr();
 
@@ -23,9 +23,11 @@ trapinit(void)
 }
 
 // set up to take exceptions and traps while in the kernel.
+//    设置内核中处理异常和中断
 void
 trapinithart(void)
 {
+  // 设置stvec寄存器，将其设置为kernelvec的地址
   w_stvec((uint64)kernelvec);
 }
 
@@ -94,11 +96,13 @@ usertrapret(void)
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
-  intr_off();
+  intr_off(); // 禁用中断，防止导致数据不一致的问题
 
   // send syscalls, interrupts, and exceptions to uservec in trampoline.S
-  uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
-  w_stvec(trampoline_uservec);
+  uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);  // 计算当前进程中，userver的地址
+                                                                    // TRAMPOLINE是当前进程的内核栈的地址（虚拟地址）
+                                                                    // uservec - trampoline是在计算偏移量（具体可看trampoline.S）
+  w_stvec(trampoline_uservec); // 将stvec设置为uservec
 
   // set up trapframe values that uservec will need when
   // the process next traps into the kernel.
@@ -135,13 +139,15 @@ void
 kerneltrap()
 {
   int which_dev = 0;
-  uint64 sepc = r_sepc();
-  uint64 sstatus = r_sstatus();
-  uint64 scause = r_scause();
+  uint64 sepc = r_sepc(); // sepc寄存器，用于记录异常发生时的程序计数器（PC）值
+                          // 使得中断处理程序执行完之后，能够恢复程序的运行状态
+  uint64 sstatus = r_sstatus(); // 获取sstatus寄存器的值，该寄存器用于控制和保存处理器状态
+  uint64 scause = r_scause(); // 获取scause寄存器的值，该寄存器用于保存导致异常或中断的原因
   
-  if((sstatus & SSTATUS_SPP) == 0)
+  if((sstatus & SSTATUS_SPP) == 0)  // 上一条指令的运行模式是用户模式，这说明权限错了
+                                    // SSTATUS_SPP的定义中有写
     panic("kerneltrap: not from supervisor mode");
-  if(intr_get() != 0)
+  if(intr_get() != 0) // syscall的时候不允许设备中断（我不是很理解为什么要这么做）
     panic("kerneltrap: interrupts enabled");
 
   if((which_dev = devintr()) == 0){
@@ -174,6 +180,10 @@ clockintr()
 // returns 2 if timer interrupt,
 // 1 if other device,
 // 0 if not recognized.
+// 检查是外部中断还是软件中断（syscall）
+//    0是无法识别的中断
+//    1是外部中断
+//    2是时钟中断
 int
 devintr()
 {

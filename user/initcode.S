@@ -11,6 +11,7 @@ start:
         li a7, SYS_exec
         ecall
 
+# 在exec系统调用调用失败的时候无限循环，调用exit进行清理和退出
 # for(;;) exit();
 exit:
         li a7, SYS_exit

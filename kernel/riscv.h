@@ -280,6 +280,7 @@ intr_off()
 }
 
 // are device interrupts enabled?
+// 设备中断是否已启用？
 static inline int
 intr_get()
 {
