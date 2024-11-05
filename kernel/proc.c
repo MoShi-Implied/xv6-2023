@@ -695,7 +695,7 @@ procdump(void)
   }
 }
 
-// 好像没法上锁》
+// 好像没法上锁？
 uint64 acquire_sizeof_nproc(void) {
   struct proc* p = proc;
   uint64 cnt = 0;

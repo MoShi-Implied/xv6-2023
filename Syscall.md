@@ -419,3 +419,58 @@ userinit(void)
   release(&p->lock);
 }
 ```
+
+## 关于内存分配的数据结构
+着眼于``kernel/kalloc.c``，具体分析下该文件的内容。
+
+首先有最重要的两个结构体：
+```c
+// 一个简单的链表节点
+struct run {
+  struct run *next;
+};
+
+// 仅有一个实例的匿名结构体
+struct {
+  struct spinlock lock;
+  struct run *freelist;
+} kmem;
+```
+单看这些不知道其具体含义是什么，但这里先提前说明，以防看不懂：
+- ``run``：一个简单的链表节点
+- ``kmem``：对物理内存进行管理的变量，其中含有一个**自旋锁**和空闲链表的头指针
+
+可能会对``run``有疑惑：==为什么其中有指针就够了呢？不跟常规链表一样需要一个value吗？==
+这里我们就需要知道非常重要的一点：在xv6中，内核跟其它的进程不一样，<font color="red"><b>内核看到的内存地址是物理地址而不是虚拟地址</b></font>，因此，这个指针的值其实就是空闲页面的**起始物理地址**，并且xv6中使用了分页机制，==每个页面的大小都是4096==，这也使得对该链表的维护变得简单。
+
+## 内核中设置用户空间的数据结构
+这个问题其实是在``Sysinfo``中遇到的，syscall其实有两种调用情况：
+1. syscall传入的是一个``int``类型的普通变量
+2. syscall传入的是一个指针
+
+这两种情况下，在内核中需要以不同的方法应对：
+1. ``int``时，只需要``argint``获取它就行：
+	```c
+	// Fetch the nth 32-bit system call argument.
+	void argint(int n, int *ip);
+	```
+2. 指针时，应当使用``argaddr``获取参数的地址：
+	```c
+	// Retrieve an argument as a pointer.
+	// Doesn't check for legality, since
+	// copyin/copyout will do that.
+	void argaddr(int n, uint64 *ip);
+	```
+
+这里又需要注意了：==使用argaddr获得到的参数地址是虚拟地址==，因此拿到手的时候不能直接使用。
+
+在``Hints``中其实有提示：
+> [!Hints]
+> - sysinfo needs to copy a struct sysinfo back to user space; see sys_fstat() (kernel/sysfile.c) and filestat() (kernel/file.c) for examples of how to do that using copyout().
+
+根据其提示，找到关于``copyout``的使用：
+```c
+if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+      return -1;
+```
+很好理解，便不多说了。
