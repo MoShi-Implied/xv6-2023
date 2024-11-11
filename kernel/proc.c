@@ -143,7 +143,6 @@ found:
   */
   p->usyscall->pid = p->pid;
 
-  // printf("alloc succ!\n");
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -153,8 +152,8 @@ found:
     return 0;
   }
 
-  pte_t* pte = walk(p->pagetable, USYSCALL, 0);
-  printf("%p: usyscall's pa\n", PTE2PA(*pte));
+  // pte_t* pte = walk(p->pagetable, USYSCALL, 0);
+  // printf("%p: usyscall's pa\n", PTE2PA(*pte));
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -173,6 +172,10 @@ freeproc(struct proc *p)
 {
   if(p->trapframe)
     kfree((void*)p->trapframe);
+  if(p->usyscall)
+    kfree((void*)p->usyscall);
+  
+  p->usyscall = 0;
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -223,7 +226,7 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
-if(mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->usyscall), PTE_R | PTE_U) < 0){
+  if(mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->usyscall), PTE_R | PTE_U) < 0){
     // 映射完成后，我们访问 USYSCALL 开始的页，就会访问到 p->usyscall
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmunmap(pagetable, TRAPFRAME, 1, 0);
@@ -240,7 +243,7 @@ if(mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->usyscall), PTE_R | PTE_U) <
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
-  uvmunmap(pagetable, USYSCALL, 1, 0); // add
+  uvmunmap(pagetable, USYSCALL, 1, 0); // add    
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
@@ -717,7 +720,3 @@ procdump(void)
     printf("\n");
   }
 }
-
-// uint64 pgaccess(char* buff, int second, int abits) {
-  
-// }

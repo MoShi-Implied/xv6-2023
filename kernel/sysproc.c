@@ -70,14 +70,14 @@ sys_sleep(void)
 }
 
 
-#ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
-  return 0;
-}
-#endif
+// #ifdef LAB_PGTBL
+// int
+// sys_pgaccess(void)
+// {
+//   // lab pgtbl: your code here.
+//   return 0;
+// }
+// #endif
 
 uint64
 sys_kill(void)
@@ -101,13 +101,39 @@ sys_uptime(void)
   return xticks;
 }
 
-// uint64 sys_pgaccess() {
-//   uint64 buff;
-//   uint64 abits;
-//   int second;
+#define PTE_A (1L << 6) // 1 -> accessed
 
-//   argaddr(0, &buff);
-//   argint(1, &second);
-//   argaddr(2, &abits);
-//   return pgaccess(buff, second, abits);
-// }
+int pgaccess(pagetable_t pagetable,uint64 start_va, int page_num, uint64 result_va)
+{
+  int max_pg = 64;
+
+  if(page_num > max_pg)
+    page_num = max_pg;
+
+  uint64 result_mask = 0;
+  uint64 va = start_va;
+  for(int i = 0; i < max_pg; i++) {
+    pte_t *pte = walk(pagetable, va, 0);
+    if(*pte & PTE_A) {
+      result_mask |= (1 << i);
+      *pte &= ~PTE_A;
+    }
+    
+    va += PGSIZE;
+  }
+  copyout(pagetable, result_va, (char*)&result_mask, sizeof(result_mask));
+  return 0;
+}
+int
+sys_pgaccess(void)
+{
+  uint64 st_va;
+  int npg;
+  uint64 abits;
+  argaddr(0, &st_va);
+  argint(1, &npg);
+  argaddr(2, &abits);
+
+  return pgaccess(myproc()->pagetable, st_va, npg, abits);
+}
+

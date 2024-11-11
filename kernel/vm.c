@@ -461,6 +461,7 @@ void helper(pagetable_t pt, int level) {
   }
   
   for(int i = 0; i < 512; i++) {
+    // printf("access %d\n", i);
     pte_t pte = (pte_t)pt[i];
     if(pte & PTE_V){
       for(int j = 0; j < level; j++) {
