@@ -132,6 +132,19 @@ found:
     return 0;
   }
 
+  // 为usyscall分配内存
+  if((p->usyscall = (struct usyscall*)kalloc()) == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  /*
+    对新加的区域中的元素进行赋值
+  */
+  p->usyscall->pid = p->pid;
+
+  // printf("alloc succ!\n");
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -139,6 +152,9 @@ found:
     release(&p->lock);
     return 0;
   }
+
+  pte_t* pte = walk(p->pagetable, USYSCALL, 0);
+  printf("%p: usyscall's pa\n", PTE2PA(*pte));
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -183,6 +199,11 @@ proc_pagetable(struct proc *p)
   if(pagetable == 0)
     return 0;
 
+  /*
+    在进程的页表刚被创建的时候
+    有些预先定义的虚拟地址就已经可以进行内存映射了
+    如下
+  */
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
@@ -202,6 +223,15 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+if(mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->usyscall), PTE_R | PTE_U) < 0){
+    // 映射完成后，我们访问 USYSCALL 开始的页，就会访问到 p->usyscall
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+  // printf("mapping succ!\n");
+
   return pagetable;
 }
 
@@ -210,6 +240,7 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
+  uvmunmap(pagetable, USYSCALL, 1, 0); // add
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
@@ -686,3 +717,7 @@ procdump(void)
     printf("\n");
   }
 }
+
+// uint64 pgaccess(char* buff, int second, int abits) {
+  
+// }

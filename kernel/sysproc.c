@@ -100,3 +100,14 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// uint64 sys_pgaccess() {
+//   uint64 buff;
+//   uint64 abits;
+//   int second;
+
+//   argaddr(0, &buff);
+//   argint(1, &second);
+//   argaddr(2, &abits);
+//   return pgaccess(buff, second, abits);
+// }
