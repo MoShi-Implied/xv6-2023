@@ -125,8 +125,21 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  p->fn = 0; // 不知道这个一开始初始化为什么好
+  p->ticks = 0;
+  p->passed = 0;
+  p->running = 0;
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  // 为alarm_tf分配内存
+  // 由于这部分内存不会被显示访问，只是用于临时存储，因此它不需要进行映射
+  if((p->alarm_tf = (struct trapframe*)kalloc()) == 0) {
     freeproc(p);
     release(&p->lock);
     return 0;
@@ -158,6 +171,11 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+
+  if(p->alarm_tf) 
+    kfree((void*)p->alarm_tf);
+  p->alarm_tf = 0;
+
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -169,6 +187,11 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  p->fn = 0;
+  p->ticks = 0;
+  p->passed =0;
+  p->running = 0;
 }
 
 // Create a user page table for a given process, with no user memory,

@@ -65,8 +65,22 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } 
+  // 这说明是正常的中断
+  else if((which_dev = devintr()) != 0){
     // ok
+    // 如果这个是来自定时器的中断
+    if(which_dev == 2 && p->ticks != 0) {
+      p->passed++;
+
+      if(p->passed >= p->ticks && !p->running) { // 当前不能有正在执行的handle
+        p->passed = 0;
+        // p->fn(); // 执行指定的函数
+        *(p->alarm_tf) = *(p->trapframe);
+        p->trapframe->epc = (uint64)p->fn;
+      }
+    }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -218,4 +232,3 @@ devintr()
     return 0;
   }
 }
-
