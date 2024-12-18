@@ -1,9 +1,13 @@
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <assert.h>
 #include <pthread.h>
 #include <sys/time.h>
+
+// #define __USE_UNIX98
+// #define __USE_XOPEN2K
 
 #define NBUCKET 5
 #define NKEYS 100000
@@ -13,10 +17,12 @@ struct entry {
   int value;
   struct entry *next;
 };
-struct entry *table[NBUCKET];
-int keys[NKEYS];
+struct entry *table[NBUCKET]; // 这个hash有五个桶，每个桶是一个链表
+int keys[NKEYS]; // 对应的Key
 int nthread = 1;
 
+// pthread_mutex_t mtx;
+pthread_mutex_t mtx[NBUCKET];
 
 double
 now()
@@ -27,7 +33,7 @@ now()
 }
 
 static void 
-insert(int key, int value, struct entry **p, struct entry *n)
+insert(int key, int value, struct entry **p, struct entry *n) // p是一个链表头，这个使用的是头插法
 {
   struct entry *e = malloc(sizeof(struct entry));
   e->key = key;
@@ -39,9 +45,10 @@ insert(int key, int value, struct entry **p, struct entry *n)
 static 
 void put(int key, int value)
 {
-  int i = key % NBUCKET;
+  int i = key % NBUCKET; // i是对应的桶的index
 
   // is the key already present?
+  pthread_mutex_lock(&mtx[i]);
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key)
@@ -54,7 +61,7 @@ void put(int key, int value)
     // the new is new.
     insert(key, value, &table[i], table[i]);
   }
-
+  pthread_mutex_unlock(&mtx[i]);
 }
 
 static struct entry*
@@ -62,24 +69,26 @@ get(int key)
 {
   int i = key % NBUCKET;
 
-
+  // pthread_mutex_lock(&mtx);
   struct entry *e = 0;
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key) break;
   }
-
+  // pthread_mutex_unlock(&mtx);
   return e;
 }
 
 static void *
 put_thread(void *xa)
 {
-  int n = (int) (long) xa; // thread number
+  int n = (int) (long) xa; // thread number 线程编号
   int b = NKEYS/nthread;
 
+  // pthread_mutex_lock(&mtx);
   for (int i = 0; i < b; i++) {
     put(keys[b*n + i], n);
   }
+  // pthread_mutex_unlock(&mtx);
 
   return NULL;
 }
@@ -90,11 +99,15 @@ get_thread(void *xa)
   int n = (int) (long) xa; // thread number
   int missing = 0;
 
+  // pthread_mutex_lock(&mtx);
+
   for (int i = 0; i < NKEYS; i++) {
     struct entry *e = get(keys[i]);
     if (e == 0) missing++;
   }
   printf("%d: %d keys missing\n", n, missing);
+  // pthread_mutex_unlock(&mtx);
+
   return NULL;
 }
 
@@ -102,6 +115,10 @@ int
 main(int argc, char *argv[])
 {
   pthread_t *tha;
+  // pthread_mutex_init(&mtx, NULL);
+  for(int i = 0; i < NBUCKET; i++) {
+    pthread_mutex_init(&mtx[i], NULL);
+  }
   void *value;
   double t1, t0;
 
@@ -114,7 +131,7 @@ main(int argc, char *argv[])
   tha = malloc(sizeof(pthread_t) * nthread);
   srandom(0);
   assert(NKEYS % nthread == 0);
-  for (int i = 0; i < NKEYS; i++) {
+  for (int i = 0; i < NKEYS; i++) { // key先准备好
     keys[i] = random();
   }
 
